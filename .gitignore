@@ -1,0 +1,6 @@
+*logs
+*coverage
+
+*.idea
+*node_modules
+
