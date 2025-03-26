@@ -148,7 +148,7 @@ curl http://localhost:9000/health
 
 Key configuration parameters:
 
-| Parameter | Description                                                            | Default                                                           |
+| Parameter | Description                                                            | Example                                                           |
 |-----------|------------------------------------------------------------------------|-------------------------------------------------------------------|
 | PORT | Port the load balancer runs on                                         | 9000                                                              |
 | ENDPOINTS | Comma-separated list of backend service URLs                           | http://localhost:8080,http://localhost:8081,http://localhost:8082 |
