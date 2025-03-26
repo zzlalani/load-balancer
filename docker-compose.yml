@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  load-balancer:
+    build:
+      context: .
+    container_name: load-balancer
+    env_file:
+      - .env.docker
+    ports:
+      - "9000:9000"
+    networks:
+      - echo-network
+    depends_on:
+      - create-echo-network
+    volumes:
+      - lb_logs:/app/logs
+
+  # This service ensures the network exists before starting the load balancer
+  create-echo-network:
+    image: alpine
+    command: sh -c "echo 'Echo network check complete'"
+    networks:
+      - echo-network
+
+networks:
+  echo-network:
+    external: true
+
+volumes:
+  lb_logs:
+    driver: local
