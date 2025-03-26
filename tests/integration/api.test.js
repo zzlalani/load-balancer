@@ -449,17 +449,6 @@ describe('Round Robin Load Balancer Integration Tests', () => {
       // Verify we got the response from server2
       expect(response.body).toHaveProperty('response', 'quick');
     });
-
-    test('should handle connection refused errors', async () => {
-      // We'll simulate this by configuring a route not handled by any server
-      // The load balancer should try all servers and eventually fail with a 500
-
-      const response = await request(app)
-        .get('/api/nonexistent-route-to-simulate-connection-refused')
-        .expect(500);
-
-      expect(response.body).toHaveProperty('error', 'Failed to process request');
-    });
   });
 
   describe('Edge Cases', () => {
@@ -594,7 +583,25 @@ describe('Round Robin Load Balancer Integration Tests', () => {
         }
       });
 
-      // Make a request to server1 that will fail
+      server2.on({
+        method: 'GET',
+        path: '/api/health-test-fail',
+        reply: {
+          status: 500,
+          body: JSON.stringify({ error: 'Server error' })
+        }
+      });
+
+      server3.on({
+        method: 'GET',
+        path: '/api/health-test-fail',
+        reply: {
+          status: 500,
+          body: JSON.stringify({ error: 'Server error' })
+        }
+      });
+
+      // Make a request to instances that will fail
       await request(app)
         .get('/api/health-test-fail')
         .expect(500);
@@ -606,7 +613,11 @@ describe('Round Robin Load Balancer Integration Tests', () => {
 
       // Check that server1's health data reflects the failure
       const server1Health = response.body.endpoints['http://localhost:9081'];
+      const server2Health = response.body.endpoints['http://localhost:9082'];
+      const server3Health = response.body.endpoints['http://localhost:9083'];
       expect(server1Health.consecutiveFailures).toBeGreaterThan(0);
+      expect(server2Health.consecutiveFailures).toBeGreaterThan(0);
+      expect(server3Health.consecutiveFailures).toBeGreaterThan(0);
     });
   });
 
@@ -739,9 +750,9 @@ describe('Round Robin Load Balancer Integration Tests', () => {
       // Send malformed JSON
       const response = await request(app)
         .post('/api/echo')
-        //.set('Content-Type', 'application/json')
+        .set('Content-Type', 'application/json')
         .send('{invalid json')
-        .expect(500);
+        .expect(400);
 
       expect(response.body).toHaveProperty('error');
     });

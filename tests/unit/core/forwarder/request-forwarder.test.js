@@ -76,6 +76,74 @@ describe('RequestForwarder', () => {
     );
   });
 
+  test('should retry on server error (5xx)', async () => {
+    // Mock load balancer to return different endpoints
+    mockLoadBalancer.getNextEndpoint
+      .mockReturnValueOnce('http://localhost:8080')
+      .mockReturnValueOnce('http://localhost:8081');
+
+    // Mock failed axios response with 500 for first endpoint
+    mockAxios.onGet('http://localhost:8080/api/example').reply(500, { error: 'Server error' });
+
+    // Mock successful axios response for second endpoint
+    mockAxios.onGet('http://localhost:8081/api/example').reply(200, { success: true });
+
+    // Create mock Express request
+    const req = mockRequest({
+      method: 'GET',
+      originalUrl: '/api/example',
+      headers: {}
+    });
+
+    // Forward the request
+    const response = await requestForwarder.forwardRequest(req);
+
+    // Check that the load balancer was used to get endpoints
+    expect(mockLoadBalancer.getNextEndpoint).toHaveBeenCalledTimes(2);
+
+    // Check that the first endpoint was marked as failed
+    expect(mockLoadBalancer.markEndpointFailed).toHaveBeenCalledWith('http://localhost:8080');
+
+    // Check that the second endpoint was marked as successful
+    expect(mockLoadBalancer.markEndpointSuccess).toHaveBeenCalledWith('http://localhost:8081');
+
+    // Check that the response was from the second endpoint
+    expect(response).toEqual(expect.objectContaining({
+      status: 200,
+      data: { success: true }
+    }));
+  });
+
+  test('should not retry on client error (4xx)', async () => {
+    // Mock load balancer to return endpoints
+    mockLoadBalancer.getNextEndpoint.mockReturnValue('http://localhost:8080');
+
+    // Mock failed axios response with 404 client error
+    mockAxios.onGet('http://localhost:8080/api/example').reply(404, { error: 'Not found' });
+
+    // Create mock Express request
+    const req = mockRequest({
+      method: 'GET',
+      originalUrl: '/api/example',
+      headers: {}
+    });
+
+    // Forward the request (should return the 404 error directly)
+    const response = await requestForwarder.forwardRequest(req);
+
+    // Check that the load balancer was used to get endpoint only once
+    expect(mockLoadBalancer.getNextEndpoint).toHaveBeenCalledTimes(1);
+
+    // Check that the endpoint was NOT marked as failed (client errors don't indicate endpoint failure)
+    expect(mockLoadBalancer.markEndpointFailed).not.toHaveBeenCalled();
+
+    // Check that the response has the 404 status
+    expect(response).toEqual(expect.objectContaining({
+      status: 404,
+      data: { error: 'Not found' }
+    }));
+  });
+
   test('should retry on failure', async () => {
     // Mock load balancer to return different endpoints
     mockLoadBalancer.getNextEndpoint

@@ -32,7 +32,7 @@ function createProxyController(requestForwarder, logger) {
       res.status(response.status).send(response.data);
 
       const duration = Date.now() - startTime;
-      logger.info(`Request completed in ${duration}ms`);
+      logger.info(`Request completed in ${duration}ms with status ${response.status}`);
 
     } catch (error) {
       const duration = Date.now() - startTime;
