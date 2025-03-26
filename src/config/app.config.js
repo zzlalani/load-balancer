@@ -19,7 +19,9 @@ const config = {
     intervalMs: parseInt(process.env.HEALTH_CHECK_INTERVAL_MS || 30000),
     failThreshold: parseInt(process.env.FAIL_THRESHOLD || 3),
     recoveryTimeMs: parseInt(process.env.RECOVERY_TIME_MS || 30000)
-  }
+  },
+
+  performanceBasedRouting: process.env.PERFORMANCE_BASED_ROUTING === 'true',
 };
 
 module.exports = config;

@@ -18,6 +18,7 @@ module.exports = {
       intervalMs: 30000,
       failThreshold: 3,
       recoveryTimeMs: 30000
-    }
+    },
+    performanceBasedRouting: false
   }
 };

@@ -38,7 +38,7 @@ function createProxyController(requestForwarder, logger) {
       const duration = Date.now() - startTime;
       logger.error(`Request failed: ${error.message} (${duration}ms)`);
 
-      const statusCode = error.response?.status || 502; // Default to Bad Gateway
+      const statusCode = error.response?.status || 500; // Default to Internal Server Error
       res.status(statusCode).json({
         error: 'Failed to process request',
         message: error.message

@@ -7,6 +7,7 @@ class EndpointHealth {
     this.consecutiveFailures = 0;
     this.lastFailureTime = 0;
     this.avgResponseTimeMs = 0;
+    this.totalRequests = 0;
     this.config = config;
   }
 
@@ -20,6 +21,7 @@ class EndpointHealth {
 
   recordSuccess() {
     this.consecutiveFailures = 0;
+    this.totalRequests += 1;
   }
 
   recordFailure() {
@@ -43,7 +45,8 @@ class EndpointHealth {
       healthy: this.isHealthy(),
       consecutiveFailures: this.consecutiveFailures,
       lastFailureTime: this.lastFailureTime ? new Date(this.lastFailureTime).toISOString() : null,
-      avgResponseTimeMs: Math.round(this.avgResponseTimeMs * 100) / 100
+      avgResponseTimeMs: Math.round(this.avgResponseTimeMs * 100) / 100,
+      totalRequests: this.totalRequests
     };
   }
 }

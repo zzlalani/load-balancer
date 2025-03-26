@@ -15,9 +15,13 @@ class RequestForwarder {
     this.config = config;
     this.logger = logger;
 
+    const MB1 = 1000000;
+
     // Create axios instance with default settings
     this.client = axios.create({
-      timeout: config.server.timeoutMs
+      timeout: config.server.timeoutMs,
+      maxBodyLength: MB1,
+      maxContentLength: MB1,
     });
   }
 
@@ -31,7 +35,7 @@ class RequestForwarder {
     let lastError = null;
 
     while (attempts < this.config.server.maxRetries) {
-      const endpoint = this.loadBalancer.getNextEndpoint();
+      const endpoint = this.loadBalancer.getNextEndpoint(this.config.performanceBasedRouting);
       if (!endpoint) {
         throw new Error('No endpoints available to process request');
       }
@@ -51,7 +55,7 @@ class RequestForwarder {
           url: targetUrl,
           data: req.body,
           params: req.query,
-          headers: this.prepareHeaders(req.headers, endpoint)
+          headers: this.prepareHeaders(req.headers, endpoint),
         });
 
         const responseTime = Date.now() - startTime;

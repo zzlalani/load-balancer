@@ -97,8 +97,8 @@ describe('Proxy Controller', () => {
     // Call the handleRequest method
     await proxyController.handleRequest(req, res);
 
-    // Check default status code (502 Bad Gateway)
-    expect(res.status).toHaveBeenCalledWith(502);
+    // Check default status code (500 Internal Server Error)
+    expect(res.status).toHaveBeenCalledWith(500);
   });
 
   test('should measure request duration', async () => {

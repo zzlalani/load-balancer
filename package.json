@@ -5,10 +5,10 @@
   "scripts": {
     "start": "dotenvx run --env-file=.env.development -- node src/server.js",
     "dev": "dotenvx run --env-file=.env.development -- nodemon src/server.js",
-    "test": "dotenvx run --env-file .env.test jest",
+    "test": "dotenvx run --env-file .env.test -- jest",
     "test:unit": "dotenvx run --env-file=.env.test jest tests/unit",
     "test:integration": "dotenvx run --env-file=.env.test jest tests/integration",
-    "test:coverage": "dotenvx run --env-file .env.test jest --coverage"
+    "test:coverage": "dotenvx run --env-file .env.test -- jest --coverage"
   },
   "keywords": [],
   "author": "",

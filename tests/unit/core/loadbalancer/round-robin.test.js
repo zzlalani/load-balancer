@@ -113,4 +113,62 @@ describe('RoundRobinLoadBalancer', () => {
     expect(loadBalancer.getNextEndpoint()).toBe('http://localhost:8080');
     expect(mockLogger.warn).toHaveBeenCalledWith(expect.stringContaining('All endpoints are unhealthy'));
   });
+
+  // Additional tests for performance-based load balancing
+  test('should use round-robin when no response time data exists', () => {
+    // Spy on the round robin method
+    const roundRobinSpy = jest.spyOn(loadBalancer, 'getEndpointRoundRobin');
+
+    // Get next endpoint
+    loadBalancer.getNextEndpoint(true);
+
+    // Should use round robin since no response time data yet
+    expect(roundRobinSpy).toHaveBeenCalled();
+  });
+
+  test('should prioritize faster endpoints when response time data exists', () => {
+    // Mock different response times for each endpoint
+    loadBalancer.recordResponseTime('http://localhost:8080', 300); // Slowest
+    loadBalancer.recordResponseTime('http://localhost:8081', 50);  // Fastest
+    loadBalancer.recordResponseTime('http://localhost:8082', 150); // Medium
+
+    // Sample a large number of endpoint selections
+    const selectedEndpoints = {
+      'http://localhost:8080': 0,
+      'http://localhost:8081': 0,
+      'http://localhost:8082': 0
+    };
+
+    // Run multiple selections to get a statistically significant sample
+    for (let i = 0; i < 1000; i++) {
+      const endpoint = loadBalancer.getNextEndpoint(true);
+      selectedEndpoints[endpoint]++;
+    }
+
+    // The fastest endpoint should be selected more often than the slowest
+    expect(selectedEndpoints['http://localhost:8081']).toBeGreaterThan(selectedEndpoints['http://localhost:8080']);
+    expect(selectedEndpoints['http://localhost:8081']).toBeGreaterThan(selectedEndpoints['http://localhost:8082']);
+  });
+
+  test('should use round robin if all endpoints are unhealthy', () => {
+    // Mark all endpoints as failed
+    for (const endpoint of mockConfig.app.endpoints) {
+      for (let i = 0; i < mockConfig.app.healthCheck.failThreshold; i++) {
+        loadBalancer.markEndpointFailed(endpoint);
+      }
+    }
+
+    // Add response time data
+    loadBalancer.recordResponseTime('http://localhost:8080', 100);
+    loadBalancer.recordResponseTime('http://localhost:8081', 200);
+    loadBalancer.recordResponseTime('http://localhost:8082', 300);
+
+    // Get next endpoint - should fall back to last resort logic
+    const endpoint = loadBalancer.getNextEndpoint(true);
+
+    // Should be the first endpoint (as per the last resort logic)
+    expect(endpoint).toBe('http://localhost:8080');
+    expect(mockLogger.warn).toHaveBeenCalledWith(expect.stringContaining('All endpoints are unhealthy'));
+  });
+
 });

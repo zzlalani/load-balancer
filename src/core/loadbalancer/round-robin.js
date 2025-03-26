@@ -19,12 +19,76 @@ class RoundRobinLoadBalancer {
     logger.info(`Load balancer initialized with ${this.endpoints.length} endpoints`);
   }
 
-  getNextEndpoint() {
+  getNextEndpoint(usePerformanceBasedRouting = false) {
     if (this.endpoints.length === 0) {
       this.logger.warn('No endpoints configured for load balancing');
       return null;
     }
 
+    // Use performance-based routing if enabled and we have response time data
+    if (usePerformanceBasedRouting && this.hasResponseTimeData()) {
+      return this.getEndpointBasedOnPerformance();
+    }
+
+    // Otherwise, use standard round-robin with health checks
+    return this.getEndpointRoundRobin();
+  }
+
+  hasResponseTimeData() {
+    // We need at least one endpoint with recorded response time
+    let hasData = false;
+    this.endpointHealth.forEach(health => {
+      if (health.avgResponseTimeMs > 0) {
+        hasData = true;
+      }
+    });
+    return hasData;
+  }
+
+  /**
+   * Select an endpoint based on health and performance (response time)
+   * Simpler implementation that favors faster endpoints more
+   */
+  getEndpointBasedOnPerformance() {
+    this.logger.debug('Using performance-based endpoint selection');
+
+    // Get healthy endpoints with response time data
+    const healthyEndpoints = [];
+    const weights = [];
+
+    this.endpoints.forEach(endpoint => {
+      const health = this.endpointHealth.get(endpoint);
+      if (health && health.isHealthy()) {
+        healthyEndpoints.push(endpoint);
+        // Faster endpoints get higher weights (inverse of response time)
+        weights.push(health.avgResponseTimeMs > 0 ? 1 / health.avgResponseTimeMs : 1);
+      }
+    });
+
+    // Fall back to round-robin if no valid endpoints
+    if (healthyEndpoints.length === 0) {
+      this.logger.warn('No healthy endpoints with response time data, falling back to round-robin');
+      return this.getEndpointRoundRobin();
+    }
+
+    // Use a simplified selection approach - pick the fastest endpoint 70% of the time,
+    // and randomly select from others 30% of the time to prevent starvation
+    if (Math.random() < 0.7) {
+      // Find the index with maximum weight (fastest endpoint)
+      const maxWeightIndex = weights.indexOf(Math.max(...weights));
+      const selectedEndpoint = healthyEndpoints[maxWeightIndex];
+      this.logger.debug(`Selected fastest endpoint: ${selectedEndpoint}`);
+      return selectedEndpoint;
+    } else {
+      // Randomly select any healthy endpoint (even distribution)
+      const randomIndex = Math.floor(Math.random() * healthyEndpoints.length);
+      const selectedEndpoint = healthyEndpoints[randomIndex];
+      this.logger.debug(`Selected random healthy endpoint: ${selectedEndpoint}`);
+      return selectedEndpoint;
+    }
+  }
+
+  getEndpointRoundRobin() {
     // Try each endpoint once to find a healthy one
     for (let i = 0; i < this.endpoints.length; i++) {
       // Get next index with wrap-around
@@ -40,7 +104,7 @@ class RoundRobinLoadBalancer {
       if (health.isHealthy()) {
         // Update current index for next call
         this.currentIndex = (index + 1) % this.endpoints.length;
-        this.logger.debug(`Selected endpoint: ${endpoint}`);
+        this.logger.debug(`Selected endpoint (round-robin): ${endpoint}`);
         return endpoint;
       }
 

@@ -56,8 +56,8 @@ function createApp() {
 
   // Initialize controllers
   const controllers = {
+    health: createHealthController(loadBalancer, config.app, logger),
     proxy: createProxyController(requestForwarder, logger),
-    health: createHealthController(loadBalancer, config.app, logger)
   };
 
   // Create Express app
@@ -75,9 +75,9 @@ function createApp() {
   // Add error handler
   app.use((err, req, res, next) => {
     logger.error(`Unhandled error: ${err.message}`, { stack: err.stack });
-    res.status(500).json({
-      error: 'Internal server error',
-      message: err.message
+    res.status(err.statusCode || 500).json({
+      error: err.type,
+      message: err.message,
     });
   });
 
